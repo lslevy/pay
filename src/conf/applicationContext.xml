@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	   xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	   xmlns:p="http://www.springframework.org/schema/p" xmlns:task="http://www.springframework.org/schema/task"
+	   xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
+           http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
+           http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd
+           http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd
+           http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-4.3.xsd">
+	<context:annotation-config />
+	<aop:aspectj-autoproxy />
+	<context:component-scan base-package="com.love.pay" />
+	<!-- 配置任务 -->
+	<task:executor id="executor" pool-size="10"/>
+	<task:scheduler id="scheduler" pool-size="20"/>
+	<task:annotation-driven executor="executor" scheduler="scheduler"/>
+
+	<bean class="com.love.pay.util.SpringContextHolder"/>
+	<bean id="propertyConfigurer"
+		  class="com.love.pay.util.CustomizedPropertyConfigurer">
+		<property name="locations">
+			<list>
+				<value>classpath:conf/jdbc.properties</value>
+				<value>classpath:conf/redis.properties</value>
+				<value>classpath:conf/server.properties</value>
+				<value>classpath:conf/pay.properties</value>
+			</list>
+		</property>
+		<property name="fileEncoding" value="UTF-8"/>
+	</bean>
+
+	<!--account 数据库 -->
+	<bean id="dataSource_account" class="com.alibaba.druid.pool.DruidDataSource" destroy-method="close">
+		<property name="driverClassName" value="${jdbc_account.driverClass}" />
+		<property name="url" value="${jdbc_account.url}" />
+		<property name="username" value="${jdbc_account.username}"/>
+		<property name="password" value="${jdbc_account.password}"/>
+		<property name="maxWait" value="60000"/>
+		<property name="maxActive" value="50"/>
+		<property name="minIdle" value="5"/>
+		<property name="initialSize" value="5"/>
+		<property name="timeBetweenEvictionRunsMillis" value="60000"/>
+		<property name="poolPreparedStatements" value="true"/>
+		<property name="maxOpenPreparedStatements" value="50"/>
+		<property name="removeAbandonedTimeout" value="180"/>
+		<property name="testWhileIdle" value="true"/>
+		<property name="testOnBorrow" value="true"/>
+		<property name="testOnReturn" value="true"/>
+		<property name="validationQuery" value="select 1 from dual"/>
+	</bean>
+
+	<!-- jdbcTemplate bean -->
+	<bean id="jdbcTemplate_account" class="org.springframework.jdbc.core.JdbcTemplate">
+		<property name="dataSource" ref="dataSource_account" />
+	</bean>
+
+	<bean id="namedParameterJdbcTemplate_account" class="org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate">
+		<constructor-arg><ref bean="dataSource_account"/></constructor-arg>
+	</bean>
+
+	<!--redis-->
+	<!-- master连接池参数 -->
+	<bean id="poolConfig" class="redis.clients.jedis.JedisPoolConfig">
+		<property name="maxTotal"  value="200"/>
+		<property name="maxIdle" value="10"/>
+		<property name="maxWaitMillis" value="2000"/>
+		<property name="testOnBorrow" value="true"/>
+	</bean>
+
+	<!-- 主机地址 -->
+	<bean id="jedisPool_account" class="redis.clients.jedis.JedisPool">
+		<constructor-arg index="0" ref="poolConfig"/>
+		<constructor-arg index="1" value="${redis.account.host}"/>
+		<constructor-arg index="2" value="${redis.account.port}" type="int"/>
+		<constructor-arg index="3" value="${redis.account.timeout}" type="int"/>
+		<constructor-arg index="4" value="${redis.account.auth}"/>
+	</bean>
+
+	<bean id="redisUtil_account" class="com.love.pay.util.RedisUtil">
+		<property name="jedisPool" ref="jedisPool_account"/>
+	</bean>
+
+	<!-- 主机地址2 -->
+	<bean id="jedisPool_msg" class="redis.clients.jedis.JedisPool">
+		<constructor-arg index="0" ref="poolConfig"/>
+		<constructor-arg index="1" value="${redis.msg.host}"/>
+		<constructor-arg index="2" value="${redis.msg.port}" type="int"/>
+		<constructor-arg index="3" value="${redis.msg.timeout}" type="int"/>
+		<constructor-arg index="4" value="${redis.msg.auth}"/>
+	</bean>
+
+	<bean id="redisUtil_msg" class="com.love.pay.util.RedisUtil">
+		<property name="jedisPool" ref="jedisPool_msg"/>
+	</bean>
+
+	<!-- love数据库 -->
+	<bean id="dataSource_love" class="com.alibaba.druid.pool.DruidDataSource" destroy-method="close">
+		<property name="driverClassName" value="${jdbc_love.driverClass}" />
+		<property name="url" value="${jdbc_love.url}" />
+		<property name="username" value="${jdbc_love.username}"/>
+		<property name="password" value="${jdbc_love.password}"/>
+		<property name="maxWait" value="60000"/>
+		<property name="maxActive" value="50"/>
+		<property name="minIdle" value="5"/>
+		<property name="initialSize" value="5"/>
+		<property name="timeBetweenEvictionRunsMillis" value="60000"/>
+		<property name="poolPreparedStatements" value="true"/>
+		<property name="maxOpenPreparedStatements" value="50"/>
+		<property name="removeAbandonedTimeout" value="180"/>
+		<property name="testWhileIdle" value="true"/>
+		<property name="testOnBorrow" value="true"/>
+		<property name="testOnReturn" value="true"/>
+		<property name="validationQuery" value="select 1 from dual"/>
+	</bean>
+
+	<!-- jdbcTemplate bean -->
+	<bean id="jdbcTemplate_love" class="org.springframework.jdbc.core.JdbcTemplate">
+		<property name="dataSource" ref="dataSource_love" />
+	</bean>
+
+	<bean id="namedParameterJdbcTemplate_love" class="org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate">
+		<constructor-arg><ref bean="dataSource_love"/></constructor-arg>
+	</bean>
+
+
+
+</beans>
